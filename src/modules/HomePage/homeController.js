@@ -27,6 +27,51 @@ function searchByTerm(req, res) {
     res.status(response.statusCode).json(body);
   });
 }
+function getJob(req, res) {
+  const jobId = req.body.id; // Extracting job ID from request body
+
+  if (!jobId) {
+    return res.status(400).json({ error: "Job ID is missing from the request." });
+  }
+
+  const options = {
+    method: 'GET',
+    url: 'https://linkedin-api8.p.rapidapi.com/get-job-details',
+    qs: { id: jobId }, // Setting job ID in the query string
+    headers: {
+      'X-RapidAPI-Key': '0f376ee3a1msh35eb8d384d222e9p136bb8jsncaa1998c71f8',
+      'X-RapidAPI-Host': 'linkedin-api8.p.rapidapi.com'
+    }
+  };
+
+  request(options, function (error, response, body) {
+    if (error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(response.statusCode).send(body);
+    }
+  });
+}
+
+function searchJobs(req, res) {
+  const options = {
+    method: 'GET',
+    url: 'https://linkedin-api8.p.rapidapi.com/search-jobs',
+   
+    headers: {
+      'X-RapidAPI-Key': '0f376ee3a1msh35eb8d384d222e9p136bb8jsncaa1998c71f8',
+      'X-RapidAPI-Host': 'linkedin-api8.p.rapidapi.com'
+    }
+  };
+
+  request(options, function (error, response, body) {
+    if (error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(response.statusCode).send(body);
+    }
+  });
+}
 function getItem(req, res) {
     const jobId = req.body.jobId;
     const options = {
@@ -174,5 +219,8 @@ module.exports = {
   finishedproject,
   commentOnProj,
   getCommentsForProj,
-  featuredproject,showevent
+  featuredproject,
+  showevent,
+  searchJobs,
+  getJob
 };
