@@ -1,5 +1,5 @@
-const express = require('express');
-const { sendEmailWithRandomCode, compareCodes } = require('./emailcontroller');
+const express = require ('express');
+const { sendMaill, compareCodes } = require('./emailcontroller.js');
 
 const app = express();
 app.use(express.json());
@@ -7,13 +7,17 @@ app.use(express.json());
 let codeSentToEmail = ''; 
 
 
-app.post('/send-email', function (req, res) {
-    const { recipientEmail } = req.body;
+app.post('/send-email',  async function (req, res) {
+    const { email } = req.body;
 
-  
-    codeSentToEmail = sendEmailWithRandomCode(recipientEmail); 
-
-    res.status(200).json({ message: 'Email sent successfully' });
+    try{
+        
+    await sendMaill(email); 
+    console.log(email);
+    return res.status(200).json({ message: 'sent successfully' });
+    }catch(err){
+        return res.status(500).json({ message:err})
+    }
 });
 
 

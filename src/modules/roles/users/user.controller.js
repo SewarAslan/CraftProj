@@ -1,4 +1,4 @@
-const connection = require('./../../../../DB/connection.js');
+const connection = require('../../../../DB/connection');
 const bcrypt = require('bcrypt');
 
 const updateuser = async (request, response) => {
@@ -6,36 +6,20 @@ const updateuser = async (request, response) => {
     const userEmail = request.params.email; // Correctly access email from request parameters
 
     if (request.user.role === 'organizer') {
-        return response.json("You cannot access this page");
-    } 
-    else if (request.user.role === 'admin') {
-        const sql = `UPDATE users SET ${Object.entries(otherUpdates).map(([key, value]) => `${key} = "${value}"`).join(', ')} WHERE email = '${ request.body.email}';`;
-            connection.execute(sql,  (error, results) => {
-              if (error) {
-                return response.json(error)
-              }
-            return response.json({massege:"updated succesfully"})
-            
-            })
-        
-            
-        } 
-        else if (request.user.role === 'crafter') {
-            const sql = `UPDATE users SET ${Object.entries(otherUpdates).map(([key, value]) => `${key} = "${value}"`).join(', ')} WHERE email = '${request.user.email}';`;
-            connection.execute(sql,  (error, results) => {
-              if (error) {
-                return response.json(error)
-              }
-            return response.json({massege:"updated succesfully"})
-            
-            })
-        
-            
+        return response.status(401).json("You cannot access this page");
+    }
+     else if (request.user.role === 'crafter') {
+        const sql = `UPDATE users SET ${Object.entries(otherUpdates).map(([key, value]) => `${key} = "${value}"`).join(', ')} WHERE email = '${request.user.email}';`;
+        connection.execute(sql,  (error, results) => {
+            if (error) {
+                return response.status(500).json(error)
+            }
+            return response.status(200).json({ message: "Updated successfully" });
+        })
     } else {
-        return response.json("Unknown role");
+        return response.status(400).json("Unknown role");
     }
 };
-
 
 const join = async (req, res) => {
     try{
@@ -58,7 +42,7 @@ const join = async (req, res) => {
       }
   
       if (result[0].size > result[0].NumofMem) {
-
+       
         const sql = 'INSERT INTO collaboration (user_email, project_title) VALUES (?, ?)';
         const values = [user_email, project_title];
     
@@ -93,20 +77,29 @@ const shownotification = async (req, res) => {
         if (req.user.role !== 'crafter') {
             return res.json("You cannot access this page");
         }
-
         const userEmail = req.user.email;
-
-        const sql = ` SELECT project_title, status  FROM user_projects WHERE user_email = ? `;
+        const sql = ` SELECT project_title, status  FROM collaboration WHERE user_email = ? `;
 
         connection.execute(sql, [userEmail], (err, results) => {
             if (err) {
-                return res.status(500).json({ error: "Database error" });
+                return res.status(500).json(err.stack);
             }
             if(results.length==0){
                 return res.json({message:"no notification"})
             }
+            // for task //
+            const sql5= `select * from task`
+            connection.execute(sql5,(erre,reu)=>{
+                
+                const matchingObjects = reu.filter(obj2 =>
+                    results.some(obj1 => obj1.project_title === obj2.Project_title)
+                  );
+            const concatenatedArray = results.concat(matchingObjects);
+            return res.json({ notification: concatenatedArray });
+            })
+            
 
-            return res.json({ projects: results });
+            //end task 
         });
     } catch (err) {
         return res.status(500).json({ error: "Internal server error" });
@@ -129,14 +122,10 @@ const match = async function (req, res) {
                 return res.status(500).json({ error: "Database error" });
             }
 
-            if (rlt.length === 0) {
-                return res.json({ message: "No matching user found" });
-            }
-
             const userskills = rlt[0].skills;
             const intrests = rlt[0].intrests;
 
-            const sql2 = `SELECT email, skills FROM users WHERE skills = ? AND intrests = ? AND email != ? AND role!="organizer"`;
+            const sql2 = `SELECT email, skills FROM users WHERE skills = ? or intrests = ? AND email != ? AND role!="organizer"`;
 
             connection.execute(sql2, [userskills, intrests, email], (err, results) => {
                 if (err) {
@@ -177,12 +166,12 @@ const LendCenter = async (req, res) => {
     
     const { Material, Quantity, title } = req.body;
     const email = req.user.email;
-
+     
     const sql = `SELECT project_title FROM collaboration WHERE user_email='${email}'`;
 
     connection.execute(sql, (err, result) => {
         if (err) {
-            return res.json(err.stack);
+            return res.json({massege : "you are already added this material"});
         }
 
         // Check if the result array has at least one item
@@ -204,10 +193,10 @@ const LendCenter = async (req, res) => {
                 return res.json({ message: "You haven't joined this project" });
             }
         } else {
-            return res.json({ message: "You haven't joined any projects" });
+            return res.json({ message: "You haven't joined any projects or your request pendding" });
         }
     });
-};
+}
 
 const LendMaterial = async (req, res) => {
     if (req.user.role !== 'crafter') {
@@ -317,6 +306,39 @@ const chooseMaterial = async (req, res) => {
         return res.json({ message: err.message });
     }
 };
+const statusTask = async (req, res) => {
+    if (req.user.role !== 'crafter') {
+        return res.status(401).json("You cannot access this page");
+    }
 
+    const { status, TaskName, Project_title } = req.body;
 
-module.exports = {updateuser,join,shownotification,match,informations,LendCenter,LendMaterial,chooseMaterial} ;
+    try {
+        if (status === 'done') {
+            const s=`select NumofCrafterDoneTask from task where TaskName ="${TaskName}" and Project_title ="${Project_title}" `
+            connection.execute(s,(err,re)=>{
+                if(!re.affectedRows)return res.json({ massege:"no user found" });
+                const sql = `update task set NumofCrafterDoneTask=(${re[0].NumofCrafterDoneTask} + 1 ) where TaskName ="${TaskName}" and Project_title ="${Project_title}"` 
+                connection.execute(sql, (err, result) => {
+                    
+                    if (err) {
+                        console.error('Error executing the query:', err);
+                        return res.status(500).json({ error: 'Internal Server Error' });
+                    }
+                     if(!result.affectedRows){
+                        return res.status(400).json({ massege:" no tasks associated with the specified parameters" });
+                     }
+                    return res.status(200).json({ message: "Good job!" });
+                });
+            })           
+            
+        } else {
+            return res.json({ message: "Invalid status value" });
+        }
+    } catch (err) {
+        console.error('Error in the try-catch block:', err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
+
+module.exports = {statusTask,updateuser,join,shownotification,match,informations,LendCenter,LendMaterial,chooseMaterial} ;

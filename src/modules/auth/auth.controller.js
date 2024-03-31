@@ -8,19 +8,27 @@ app.use(bodyParser.json());
 
 const { JWT_SECRET_KEY } = require('./../middleware/middleware.js');
 const bcrypt = require('bcrypt');
+const { loginSchema, signupSchema } = require('./auth.validation.js');
 
 const login = async (req, res) => {
+    const { error } = loginSchema.validate(req.body);
+    if (error) {
+        return res.status(400).json({ message: error.details[0].message });
+    }
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).json({ message: 'Request body is missing or empty' });
+    }
     const { email, password } = req.body;
-    
     const sql = 'SELECT * FROM users';
     
     try {
-        connection.execute(sql, (err, results) => {
+        connection.execute(sql,async (err, results) => {
             if (err) {
                 return res.status(500).json({ message: 'Internal Server Error' });
             }
-            const user = results.find(u => u.email === email && u.password === password);
             
+            const user = results.find(u => u.email === email && bcrypt.compare(u.password, password));
+
             if (!user) {
                 return res.status(401).json({ message: 'Invalid email or password' });
             }
@@ -30,7 +38,7 @@ const login = async (req, res) => {
 
             const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET_KEY, { expiresIn: '1h' });
     
-            const sql2 = `SELECT email_user FROM tokens WHERE email_user = ?`;
+            const sql2 = `SELECT email_user FROM tokens WHERE email_user = "${email}"`;
             connection.execute(sql2, [email], (err, results) => {
                 console.log(results);
                 if (err) {
@@ -42,7 +50,7 @@ const login = async (req, res) => {
                         if (err) {
                             return res.json({ message: "Error" });
                         }
-                        return res.json({ message: 'Welcome back', token });
+                        return res.status(200).json({ message: 'Welcome back', token });
                     });
                 } else {
                     switch (user.role) {
@@ -51,13 +59,13 @@ const login = async (req, res) => {
                         case 'organizer':
                             connection.execute(`INSERT INTO tokens (email_user, token) VALUES (?, ?)`, [email, token], (err, result) => {
                                 if (err) {
-                                    return res.json({ message: "Error" });
+                                    return res.status(400).json({ message: "Error" });
                                 }
-                                return res.json({ message: `Welcome to the ${user.role} page`, token });
+                                return res.status(200).json({ message: `Welcome to the ${user.role} page`, token });
                             });
                             break;
                         default:
-                            return res.json({ message: 'Unknown role' });
+                            return res.status(400).json({ message: 'Unknown role' });
                     }
                 }
             });
@@ -70,29 +78,27 @@ const login = async (req, res) => {
 
 const signup = async (req, res) => {
     try {
-        const { UserName, skills, intrests, role, email, password } = req.body;
-
-        // Check if the email format is valid
-        if (!email || !email.includes('@') || !email.endsWith('.com')) {
-            return res.status(400).json({  message: 'Invalid email format' });
+        const { error } = signupSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ message: error.details[0].message });
         }
-        if (!password || !password.match(/^(?=.*[a-zA-Z])(?=.*[0-9])/)) {
-            return res.status(400).json({  message: 'Password must contain both letters and numbers' });
+        const { UserName, skills, intrests, role, email, password,materials } = req.body;
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: 'Request body is missing or empty' });
         }
-        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const sql = `INSERT INTO users (email, UserName, password, skills, role, intrests) VALUES (?, ?, ?, ?, ?, ?)`;
-        connection.execute(sql, [email, UserName, hashedPassword, skills, role, intrests], (err, result) => {
+        const sql = `INSERT INTO users (email, UserName, password, skills, role, intrests,materials) VALUES (?,?, ?, ?, ?, ?, ?)`;
+        connection.execute(sql, [email, UserName, hashedPassword, skills, role, intrests,materials], (err, result) => {
             if (err) {
                 if (err.errno == 1062) {
-                    return res.status(409).json("Email already exists");
+                    return res.status(409).json({massege : "Email already exists"});
                 } else {
                     console.error(err);
                     return res.status(500).json({ error: "Internal server error" });
                 }
             }
-            return res.status(201).json("User created successfully");
+            return res.status(201).json({massege : "User created successfully"});
         });
 
     } catch (error) {
@@ -113,7 +119,7 @@ const logout = async (req, res) => {
         console.log('Token removed from the database');
       });
   
-     return res.json( {
+     return res.status(200).json( {
         "message": "Logout successful...See you soon!"
     })
     } catch (err) {

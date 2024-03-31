@@ -1,4 +1,4 @@
-const connection = require('./../../../../DB/connection.js');
+const connection = require('../../../../DB/connection');
 const nodemailer = require('nodemailer');
 const express = require('express');
 const generateRandomString = (length) => {
@@ -9,36 +9,26 @@ const generateRandomString = (length) => {
     }
     return result;
 };
-
+ async function sendMaill(receiver){
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
-        user: 'sshahdyyaseen66@gmail.com',  
-        pass: 'pihc tzrm nwau rveh'           
+        user: `${process.env.EMAIL}`,  
+        pass:`${process.env.PASSWORD}`           
     }
 });
 
+const code = generateRandomString(10); 
+ const  sendEmailWithRandomCode = await transporter.sendMail({
 
-function sendEmailWithRandomCode(recipientEmail) {
-    const code = generateRandomString(10); 
-    const mailOptions = {
-        from: 'tasbeehsa80@gmail.com',  
-        to: 'sshahdyyaseen66@gmail.com',                  
+        from: 'Community of crafts',  
+        to: receiver,                  
         subject: 'Password Recovery Code',  
         html: `<p>Your password recovery code is: <strong>${code}</strong></p>` 
-    };
+});
 
-    
-    transporter.sendMail(mailOptions, function(error, info){
-        if (error) {
-            console.log(error);
-        } else {
-            console.log('Email sent: ' + info.response);
-        }
-    });
-
-    return code; 
 }
+
 
 function compareCodes(codeSentToEmail, providedCode) {
     
@@ -48,4 +38,4 @@ function compareCodes(codeSentToEmail, providedCode) {
 
 
 
-module.exports = { sendEmailWithRandomCode, compareCodes };
+module.exports = { sendMaill, compareCodes };

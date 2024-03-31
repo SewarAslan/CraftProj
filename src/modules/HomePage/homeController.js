@@ -1,6 +1,7 @@
-// HomeController.js
+const connection1= require('../../../DB/connection.js');
 
 const request = require('request');
+
 const connection=  require('./../../../DB/connection.js')
 function searchByTerm(req, res) {
   const { source, country, values } = req.body;
@@ -24,6 +25,51 @@ function searchByTerm(req, res) {
       return res.status(500).json({ error: error.message });
     }
     res.status(response.statusCode).json(body);
+  });
+}
+function getJob(req, res) {
+  const jobId = req.body.id; // Extracting job ID from request body
+
+  if (!jobId) {
+    return res.status(400).json({ error: "Job ID is missing from the request." });
+  }
+
+  const options = {
+    method: 'GET',
+    url: 'https://linkedin-api8.p.rapidapi.com/get-job-details',
+    qs: { id: jobId }, // Setting job ID in the query string
+    headers: {
+      'X-RapidAPI-Key': '0f376ee3a1msh35eb8d384d222e9p136bb8jsncaa1998c71f8',
+      'X-RapidAPI-Host': 'linkedin-api8.p.rapidapi.com'
+    }
+  };
+
+  request(options, function (error, response, body) {
+    if (error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(response.statusCode).send(body);
+    }
+  });
+}
+
+function searchJobs(req, res) {
+  const options = {
+    method: 'GET',
+    url: 'https://linkedin-api8.p.rapidapi.com/search-jobs',
+   
+    headers: {
+      'X-RapidAPI-Key': '0f376ee3a1msh35eb8d384d222e9p136bb8jsncaa1998c71f8',
+      'X-RapidAPI-Host': 'linkedin-api8.p.rapidapi.com'
+    }
+  };
+
+  request(options, function (error, response, body) {
+    if (error) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.status(response.statusCode).send(body);
+    }
   });
 }
 function getItem(req, res) {
@@ -96,14 +142,29 @@ const finishedproject = async (req,res)=>{
   const featuredproject = async (req, res) => {
     const sql = `SELECT organizer_email, title, description, CONCAT("http://", ?, "/upload/images/", image_url) AS image_url FROM project WHERE featured IS NOT NULL ORDER BY featured DESC`;
     
-    connection.execute(sql, [req.hostname], (err, result) => {
+    connection1.execute(sql, [req.hostname], (err, result) => {
       if (err) {
         return res.status(500).json({ error: "Internal server error" });
       }
       return res.json(result);
     });
   };
+  const showevent = async (req, res) => {
+    const sql = `SELECT EventName, addressOfevent FROM events`;
+    try {
+        connection1.execute(sql, (err, result) => {
+            if (err) {
+                return res.status(500).json(err);
+            } else {
+                return res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        return res.status(500).json(error);
+    }
+};
 
+ 
 
   let CommentArrays = {};
 function addCommentToProj(projectName, message) {
@@ -162,5 +223,9 @@ module.exports = {
   finishedproject,
   commentOnProj,
   getCommentsForProj,
- 
+  featuredproject,
+  showevent,
+  searchJobs,
+  getJob
 };
+//sj

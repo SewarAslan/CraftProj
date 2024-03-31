@@ -35,42 +35,38 @@ const notification = async (req, res) => {
         return res.json(err.stack);
     }
 };
-const chooseStatus =async function(req,res){
+const chooseStatus = async function(req, res) {
     try {
         if (req.user.role === 'crafter') {
-            return res.json("You cannot access this page");
+            return res.status(401).json("You cannot access this page");
         }
-        const { user_email, project_title,status } = req.body;
-            const sql3 = `UPDATE collaboration SET status='${status}' WHERE user_email="${user_email}"`;
-      
-            connection.execute(sql3, (erro, rlt) => {
-              if (erro) {
-                return res.json({ error: erro });
-              }
-              
-              // Return the response here to ensure it's the last response sent
-            });
-            if(status=='accept')
-            {
-                
-                const sql5= `select NumofMem,size from project where title ='${project_title}'`
-                
-                connection.execute(sql5,(err,ress)=>{
-                    console.log(ress[0].NumofMem,ress[0].size)
-                    if(ress[0].NumofMem+1==ress[0].size){
-                    const sql6= `update project set process_flow='started' where title = '${project_title}'`
-                     connection.execute(sql6);
+        const { user_email, project_title, status } = req.body;
+        const sql3 = `UPDATE collaboration SET status='${status}' WHERE user_email="${user_email}"`;
+
+        connection.execute(sql3, (error, result) => {
+            if (error) {
+                return res.status(500).json({ error: error });
+            }
+            if (status === 'accept') {
+                const sql5 = `SELECT NumofMem, size FROM project WHERE title ='${project_title}'`;
+
+                connection.execute(sql5, (err, ress) => {
+                    if (err) {
+                        return res.status(500).json({ error: err });
+                    }
+                    if (ress[0].NumofMem + 1 === ress[0].size) {
+                        const sql6 = `UPDATE project SET process_flow='started' WHERE title = '${project_title}'`;
+                        connection.execute(sql6);
                     }
                 });
-                const sql4 = `update project set NumofMem = NumofMem + 1 where title = '${project_title}'`;
-                await connection.execute(sql4);
+                const sql4 = `UPDATE project SET NumofMem = NumofMem + 1 WHERE title = '${project_title}'`;
+                connection.execute(sql4);
             }
-            return res.json({ message: `${status} successfully` });
+            return res.status(200).json({ message: `${status} successfully` });
+        });
+    } catch (error) {
+        return res.status(500).json(error.stack);
+    }
+};
 
-      } catch (err) {
-        // Handle any synchronous errors here
-        return res.json(err.stack);
-      }
-      
-}
 module.exports = {notification,chooseStatus};
